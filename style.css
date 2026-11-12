@@ -3,6 +3,28 @@
    Metodologia BEM · Mobile first
    ========================================================================== */
 
+/* Fontes de reserva com métrica ajustada ---------------------------------- */
+/* Inter e Montserrat chegam com display=swap. Sem estas faces, a troca da fonte de sistema pela
+   web font muda a largura e a altura das linhas e desloca o hero (CLS). Os overrides igualam a
+   métrica da Arial (ou equivalente) à da web font; os valores são os do next/font (capsize). */
+@font-face {
+    font-family: "Inter Fallback";
+    src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("Helvetica");
+    size-adjust: 107.06%;
+    ascent-override: 90.49%;
+    descent-override: 22.56%;
+    line-gap-override: 0%;
+}
+
+@font-face {
+    font-family: "Montserrat Fallback";
+    src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("Helvetica");
+    size-adjust: 112.83%;
+    ascent-override: 85.79%;
+    descent-override: 22.25%;
+    line-gap-override: 0%;
+}
+
 /* Tokens ------------------------------------------------------------------ */
 :root {
     /* Cores da marca (extraídas da logo) */
@@ -27,8 +49,8 @@
     --gradient-brand: linear-gradient(120deg, var(--color-blue-500), var(--color-cyan-400));
 
     /* Tipografia */
-    --font-display: "Montserrat", "Segoe UI", system-ui, sans-serif;
-    --font-body: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --font-display: "Montserrat", "Montserrat Fallback", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Inter", "Inter Fallback", "Segoe UI", system-ui, -apple-system, sans-serif;
     --text-xs: 0.8125rem;
     --text-sm: 0.9375rem;
     --text-md: 1.0625rem;
@@ -72,7 +94,8 @@
 }
 
 html {
-    scroll-behavior: smooth;
+    /* Sem scroll-behavior: smooth: o navegador o desliga pela preferência de movimento do sistema.
+       A rolagem das âncoras é programada no script.js (rAF, interrompível). */
     scroll-padding-top: calc(var(--header-height) + 0.5rem);
     -webkit-text-size-adjust: 100%;
 }
@@ -192,7 +215,7 @@ svg use {
 
 /* Retorno do clique */
 .button:active {
-    transform: translateY(0) scale(0.97);
+    transform: translateY(0) scale(0.95);
     transition-duration: 0.12s;
 }
 
@@ -882,7 +905,8 @@ svg use {
     font-family: var(--font-display);
     font-size: var(--text-xs);
     font-weight: 700;
-    color: var(--color-blue-500);
+    /* blue-600: o blue-500 dá 3,62:1 no branco; texto pequeno pede 4,5:1 (AA) */
+    color: var(--color-blue-600);
 }
 
 .solution-card__icon {
@@ -1468,35 +1492,22 @@ a.contact__link:hover {
 
 /* Revelação ao rolar (só com JS ativo) ------------------------------------ */
 .js [data-reveal] {
+    /* Escondido só com JS; a entrada (opacity + translateY) é uma animação WAAPI no script.js,
+       que tira o data-reveal na mesma tarefa. Sem JS ou sem WAAPI, tudo aparece normal. */
     opacity: 0;
-    transform: translateY(1.25rem);
-    transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
 }
 
-.js [data-reveal].is-visible {
-    opacity: 1;
-    transform: none;
+/* Seção focada pela rolagem das âncoras: contorno para dentro, só no teclado */
+main section[tabindex="-1"]:focus {
+    outline: none;
 }
 
-/* Movimento reduzido ------------------------------------------------------ */
-@media (prefers-reduced-motion: reduce) {
-    html {
-        scroll-behavior: auto;
-    }
-
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-    }
-
-    .js [data-reveal] {
-        opacity: 1;
-        transform: none;
-    }
+main section[tabindex="-1"]:focus-visible {
+    outline: 2px solid var(--color-cyan-400);
+    outline-offset: -4px;
 }
+
+/* Movimento reduzido: a preferência é ignorada de propósito (ver decisoes.md, 2026-11-12). */
 
 /* Card de chamada no fim da grade de produtos */
 .product-card--cta {

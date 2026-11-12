@@ -17,6 +17,111 @@
 
     root.classList.add("js");
 
+    /* Movimento (ms) ------------------------------------------------------- */
+    // Padrão do Fred (Suno Vantagens). Só opacity e transform. Não consulta prefers-reduced-motion
+    // (decisão do usuário, ver decisoes.md). Único fallback: navegador sem WAAPI mostra e rola na hora.
+    var EASE_OUT = "cubic-bezier(0.22, 1, 0.36, 1)";
+    var RISE_FRAMES = [
+        { opacity: 0, transform: "translateY(20px)" },
+        { opacity: 1, transform: "none" }
+    ];
+    var MOTION = { enter: 450, stagger: 70, frames: RISE_FRAMES };
+    var CASCADE_MS = 1000;
+    var SCROLL_MIN_MS = 700;
+    var SCROLL_MAX_MS = 1200;
+    var SCROLL_MS_FACTOR = 20;
+    var SCROLL_STOP_EVENTS = ["wheel", "touchstart", "keydown", "mousedown"];
+
+    function motion() {
+        return typeof window.Element.prototype.animate === "function" ? MOTION : null;
+    }
+
+    function easeInOut(t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+
+    function cascade(nodes, delay) {
+        var profile = motion();
+        if (!profile) {
+            return;
+        }
+        var maxStagger = CASCADE_MS - profile.enter;
+        nodes.forEach(function (node, index) {
+            node.animate(profile.frames, {
+                duration: profile.enter,
+                delay: (delay || 0) + Math.min(index * profile.stagger, maxStagger),
+                easing: EASE_OUT,
+                fill: "backwards"
+            });
+        });
+    }
+
+    var stopScroll = null;
+
+    // Devolve a duração (0 se instantânea). `done` roda só se a rolagem chegar ao fim.
+    function scrollToY(y, done) {
+        if (stopScroll) {
+            stopScroll();
+        }
+        var start = window.pageYOffset;
+        var max = document.documentElement.scrollHeight - window.innerHeight;
+        var target = Math.max(0, Math.min(max, y));
+        var distance = target - start;
+
+        if (!motion() || Math.abs(distance) < 2) {
+            window.scrollTo(0, target);
+            if (done) {
+                done();
+            }
+            return 0;
+        }
+
+        var duration = Math.round(Math.min(
+            SCROLL_MAX_MS,
+            Math.max(SCROLL_MIN_MS, Math.sqrt(Math.abs(distance)) * SCROLL_MS_FACTOR)
+        ));
+        var frame = 0;
+        var began = null;
+
+        function cleanup() {
+            window.cancelAnimationFrame(frame);
+            SCROLL_STOP_EVENTS.forEach(function (type) {
+                window.removeEventListener(type, cleanup);
+            });
+            stopScroll = null;
+        }
+
+        function step(now) {
+            if (began === null) {
+                began = now;
+            }
+            var progress = Math.min(1, (now - began) / duration);
+            window.scrollTo(0, start + distance * easeInOut(progress));
+            if (progress < 1) {
+                frame = window.requestAnimationFrame(step);
+            } else {
+                cleanup();
+                if (done) {
+                    done();
+                }
+            }
+        }
+
+        SCROLL_STOP_EVENTS.forEach(function (type) {
+            window.addEventListener(type, cleanup, { passive: true });
+        });
+        stopScroll = cleanup;
+        frame = window.requestAnimationFrame(step);
+        return duration;
+    }
+
+    // Desconta o scroll-padding-top do html (header fixo) e o scroll-margin-top do alvo.
+    function scrollToElement(element, done) {
+        var padding = parseFloat(window.getComputedStyle(root).scrollPaddingTop) || 0;
+        var margin = parseFloat(window.getComputedStyle(element).scrollMarginTop) || 0;
+        return scrollToY(element.getBoundingClientRect().top + window.pageYOffset - padding - margin, done);
+    }
+
     /* Links do WhatsApp ---------------------------------------------------- */
     var whatsappUrl = "https://wa.me/" + WHATSAPP_NUMBER + "?text=" + encodeURIComponent(WHATSAPP_MESSAGE);
     document.querySelectorAll("[data-whatsapp-link]").forEach(function (link) {
@@ -108,32 +213,20 @@
             sectionObserver.observe(section);
         });
 
-        /* Revelação suave ao rolar ----------------------------------------- */
-        // Cascata por lote: o que entra junto na tela aparece em sequência (70 ms, teto de 420 ms).
-        // Ao terminar, o elemento perde o data-reveal e volta às transições de hover dele.
-        function finishReveal(event) {
-            if (event.target !== event.currentTarget || event.propertyName !== "opacity") {
-                return;
-            }
-            var element = event.currentTarget;
-            element.removeEventListener("transitionend", finishReveal);
-            element.style.transitionDelay = "";
-            element.removeAttribute("data-reveal");
-            element.classList.remove("is-visible");
-        }
-
+        /* Revelação ao rolar ----------------------------------------------- */
+        // O que entra junto na tela sobe em cascata (WAAPI, ver MOTION). O data-reveal sai na mesma
+        // tarefa em que a animação nasce invisível (fill: backwards), então não há quadro piscando.
         var revealObserver = new IntersectionObserver(function (entries) {
-            var batch = 0;
+            var batch = [];
             entries.forEach(function (entry) {
-                if (!entry.isIntersecting) {
-                    return;
+                if (entry.isIntersecting) {
+                    batch.push(entry.target);
+                    revealObserver.unobserve(entry.target);
                 }
-                var element = entry.target;
-                element.style.transitionDelay = Math.min(batch * 70, 420) + "ms";
-                batch += 1;
-                element.addEventListener("transitionend", finishReveal);
-                element.classList.add("is-visible");
-                revealObserver.unobserve(element);
+            });
+            cascade(batch);
+            batch.forEach(function (element) {
+                element.removeAttribute("data-reveal");
             });
         }, { rootMargin: "0px 0px -8% 0px", threshold: 0.05 });
 
@@ -142,7 +235,35 @@
         });
     } else {
         document.querySelectorAll("[data-reveal]").forEach(function (element) {
-            element.classList.add("is-visible");
+            element.removeAttribute("data-reveal");
         });
     }
+
+    /* Rolagem das âncoras -------------------------------------------------- */
+    // rAF + easeInOutCubic, duração pela distância, interrompível por gesto. Nunca scroll-behavior
+    // smooth: o navegador o desliga pela preferência de movimento do sistema.
+    document.addEventListener("click", function (event) {
+        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+            return;
+        }
+        var link = event.target.closest('a[href^="#"]');
+        if (!link || link.classList.contains("skip-link")) {
+            return;
+        }
+        var id = link.getAttribute("href").slice(1);
+        var target = id ? document.getElementById(id) : null;
+        if (!target) {
+            return;
+        }
+        event.preventDefault();
+        if (window.location.hash !== "#" + id) {
+            window.history.pushState(null, "", "#" + id);
+        }
+        scrollToElement(target, function () {
+            if (!target.hasAttribute("tabindex")) {
+                target.setAttribute("tabindex", "-1");
+            }
+            target.focus({ preventScroll: true });
+        });
+    });
 })();
