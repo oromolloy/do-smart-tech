@@ -122,6 +122,73 @@
         return scrollToY(element.getBoundingClientRect().top + window.pageYOffset - padding - margin, done);
     }
 
+    /* Chegada na âncora --------------------------------------------------- */
+    // Retorno visual ao chegar no destino (sobretudo quando a rolagem é zero ou curta e a tela não
+    // muda). Só opacity e transform via WAAPI, sem fill: ao terminar ou cancelar não sobra estilo.
+    // Destino com [data-arrival]: halo no ::after do card e cascata leve nos [data-arrival-item].
+    // Outros destinos: só quando já estavam no lugar (rolagem zero), um aceno curto no título.
+    var ARRIVAL_HALO_FRAMES = [
+        { opacity: 0, transform: "scale(0.97)" },
+        { opacity: 1, transform: "none", offset: 0.35 },
+        { opacity: 0, transform: "none" }
+    ];
+    var ARRIVAL_ITEM_FRAMES = [
+        { transform: "none" },
+        { transform: "translateX(6px) scale(1.02)", offset: 0.4 },
+        { transform: "none" }
+    ];
+    var ARRIVAL_NUDGE_FRAMES = [
+        { opacity: 1, transform: "none" },
+        { opacity: 0.6, transform: "translateY(-4px)", offset: 0.4 },
+        { opacity: 1, transform: "none" }
+    ];
+    var ARRIVAL = { halo: 700, itemLead: 200, item: 450, stagger: 80, nudge: 500 };
+    var arrivals = [];
+
+    function stopArrival() {
+        arrivals.forEach(function (animation) {
+            animation.cancel();
+        });
+        arrivals = [];
+        SCROLL_STOP_EVENTS.forEach(function (type) {
+            window.removeEventListener(type, stopArrival);
+        });
+    }
+
+    function arrive(target, stood) {
+        stopArrival();
+        if (!motion()) {
+            return;
+        }
+        var card = target.querySelector("[data-arrival]");
+        if (card) {
+            arrivals.push(card.animate(ARRIVAL_HALO_FRAMES, {
+                duration: ARRIVAL.halo,
+                easing: EASE_OUT,
+                pseudoElement: "::after"
+            }));
+            Array.prototype.forEach.call(target.querySelectorAll("[data-arrival-item]"), function (item, index) {
+                arrivals.push(item.animate(ARRIVAL_ITEM_FRAMES, {
+                    duration: ARRIVAL.item,
+                    delay: ARRIVAL.itemLead + index * ARRIVAL.stagger,
+                    easing: EASE_OUT
+                }));
+            });
+        } else if (stood) {
+            var heading = target.querySelector("h1, h2");
+            if (heading) {
+                arrivals.push(heading.animate(ARRIVAL_NUDGE_FRAMES, { duration: ARRIVAL.nudge, easing: EASE_OUT }));
+            }
+        }
+        if (!arrivals.length) {
+            return;
+        }
+        arrivals[arrivals.length - 1].onfinish = stopArrival;
+        SCROLL_STOP_EVENTS.forEach(function (type) {
+            window.addEventListener(type, stopArrival, { passive: true });
+        });
+    }
+
     /* Links do WhatsApp ---------------------------------------------------- */
     var whatsappUrl = "https://wa.me/" + WHATSAPP_NUMBER + "?text=" + encodeURIComponent(WHATSAPP_MESSAGE);
     document.querySelectorAll("[data-whatsapp-link]").forEach(function (link) {
@@ -259,11 +326,14 @@
         if (window.location.hash !== "#" + id) {
             window.history.pushState(null, "", "#" + id);
         }
-        scrollToElement(target, function () {
+        var duration = -1;
+        duration = scrollToElement(target, function () {
             if (!target.hasAttribute("tabindex")) {
                 target.setAttribute("tabindex", "-1");
             }
             target.focus({ preventScroll: true });
+            // duration ainda é -1 quando a chegada é síncrona (rolagem zero ou sem WAAPI)
+            arrive(target, duration <= 0);
         });
     });
 })();
