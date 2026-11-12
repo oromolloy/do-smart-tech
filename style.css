@@ -190,6 +190,12 @@ svg use {
     transform: translateY(-2px);
 }
 
+/* Retorno do clique */
+.button:active {
+    transform: translateY(0) scale(0.97);
+    transition-duration: 0.12s;
+}
+
 .button--primary {
     color: #ffffff;
     background: var(--color-blue-600);

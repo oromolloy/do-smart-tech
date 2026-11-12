@@ -109,17 +109,35 @@
         });
 
         /* Revelação suave ao rolar ----------------------------------------- */
+        // Cascata por lote: o que entra junto na tela aparece em sequência (70 ms, teto de 420 ms).
+        // Ao terminar, o elemento perde o data-reveal e volta às transições de hover dele.
+        function finishReveal(event) {
+            if (event.target !== event.currentTarget || event.propertyName !== "opacity") {
+                return;
+            }
+            var element = event.currentTarget;
+            element.removeEventListener("transitionend", finishReveal);
+            element.style.transitionDelay = "";
+            element.removeAttribute("data-reveal");
+            element.classList.remove("is-visible");
+        }
+
         var revealObserver = new IntersectionObserver(function (entries) {
+            var batch = 0;
             entries.forEach(function (entry) {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add("is-visible");
-                    revealObserver.unobserve(entry.target);
+                if (!entry.isIntersecting) {
+                    return;
                 }
+                var element = entry.target;
+                element.style.transitionDelay = Math.min(batch * 70, 420) + "ms";
+                batch += 1;
+                element.addEventListener("transitionend", finishReveal);
+                element.classList.add("is-visible");
+                revealObserver.unobserve(element);
             });
         }, { rootMargin: "0px 0px -8% 0px", threshold: 0.05 });
 
-        document.querySelectorAll("[data-reveal]").forEach(function (element, index) {
-            element.style.transitionDelay = (index % 4) * 60 + "ms";
+        document.querySelectorAll("[data-reveal]").forEach(function (element) {
             revealObserver.observe(element);
         });
     } else {
