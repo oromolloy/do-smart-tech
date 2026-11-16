@@ -229,6 +229,25 @@ svg use {
     border: 0;
 }
 
+/* Mantém junto um termo composto ("pós-venda", "Self-checkout"): não quebra no hífen. */
+.text-nowrap {
+    white-space: nowrap;
+}
+
+/* Quebra de linha: parágrafos e listas com "pretty" (evita palavra sozinha na última linha
+   onde há suporte; o Firefox ignora) e títulos com "balance", que funciona nos dois motores e
+   não muda o número de linhas. Eyebrows e textos curtos ganham "balance" no próprio bloco. */
+p,
+li {
+    text-wrap: pretty;
+}
+
+h1,
+h2,
+h3 {
+    text-wrap: balance;
+}
+
 .skip-link {
     position: fixed;
     top: var(--space-3);
@@ -314,6 +333,30 @@ svg use {
 .button__icon--large {
     width: 1.375rem;
     height: 1.375rem;
+}
+
+/* Botão que pode quebrar em 2 linhas no mobile: o ícone entra no fluxo do texto e as linhas
+   ficam centralizadas, com a mesma folga dos dois lados (no inline-flex o ícone ficava fora
+   do bloco de texto e a folga saía torta). A partir de 48rem volta ao inline-flex. */
+.button--wrap {
+    display: inline-block;
+    padding-block: var(--space-3);
+    line-height: 1.5;
+    text-align: center;
+    text-wrap: balance;
+}
+
+.button--wrap .button__icon {
+    /* O reset deixa svg como block; aqui ele precisa ficar na linha do texto. */
+    display: inline-block;
+    vertical-align: middle;
+}
+
+@media (min-width: 48rem) {
+    .button--wrap {
+        display: inline-flex;
+        padding-block: 0;
+    }
 }
 
 .button:hover .button__icon {
@@ -475,8 +518,11 @@ svg use {
     }
 
     .header__link {
+        /* Padding lateral fluido: 0,5rem em 1024px até 0,75rem por volta de 1120px. Sem isso,
+           entre 64rem e ~70rem o botão "Solicitar orçamento" quebrava em 2 linhas. */
+        --header-link-gap: clamp(var(--space-2), 4.1667vw - 2.1667rem, var(--space-3));
         position: relative;
-        padding: var(--space-2) var(--space-3);
+        padding: var(--space-2) var(--header-link-gap);
         font-family: var(--font-body);
         font-size: var(--text-sm);
         font-weight: 500;
@@ -487,8 +533,8 @@ svg use {
     .header__link::after {
         content: "";
         position: absolute;
-        left: var(--space-3);
-        right: var(--space-3);
+        left: var(--header-link-gap);
+        right: var(--header-link-gap);
         bottom: 0.15rem;
         height: 2px;
         background: var(--gradient-brand);
@@ -571,7 +617,6 @@ svg use {
     line-height: 1.05;
     letter-spacing: -0.03em;
     color: #ffffff;
-    text-wrap: balance;
 }
 
 .hero__title-highlight {
@@ -625,20 +670,25 @@ svg use {
     stroke-width: 3;
 }
 
+/* Mobile: o visual é uma coluna. Em cima, a órbita (palco quadrado); embaixo, os 9 chips
+   com rótulo em blocos centrados. A 1ª linha de chips pousa sobre a base da órbita. */
 .hero__visual {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.hero__stage {
     position: relative;
     display: grid;
     place-items: center;
     aspect-ratio: 1;
-    /* Mobile: o visual fica menor que a coluna (o texto é o protagonista) e deixa espaço
-       lateral para os chips, que ficam centrados sobre a órbita externa. */
-    width: min(72%, 17rem);
-    margin: 0 auto;
+    width: min(66%, 14rem);
 }
 
 /* Glow do símbolo em camada estática: substitui o filter: drop-shadow que era repintado a
    cada quadro da flutuação. Assim a animação do símbolo é só transform. */
-.hero__visual::before {
+.hero__stage::before {
     content: "";
     position: absolute;
     inset: 22%;
@@ -672,20 +722,30 @@ svg use {
     animation: hero-float 7s ease-in-out infinite;
 }
 
+/* A ordem dos chips no HTML é a ordem das linhas no mobile (2 + 2 + 2 + 3). O max-width
+   fixa essas linhas de 320px a 767px; se uma fonte mais larga não couber, o chip só desce
+   para outra linha (nunca estoura a coluna). */
+.hero__chips {
+    position: relative; /* posicionado e depois do palco no DOM: os chips ficam por cima da órbita */
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-2);
+    max-width: 20rem;
+    margin-top: calc(var(--space-4) * -1);
+}
+
 .hero__chip {
-    position: absolute;
     display: inline-flex;
     align-items: center;
     gap: 0.375rem;
-    padding: 0.375rem 0.75rem 0.375rem 0.625rem;
-    font-size: 0.75rem;
+    padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1);
+    font-size: var(--text-xs);
     font-weight: 500;
     line-height: 1.2;
     letter-spacing: 0.01em;
     white-space: nowrap;
     color: var(--color-text-on-dark);
-    /* Centrado no ponto da órbita externa (transform estático, não animado). */
-    transform: translate(-50%, -50%);
     /* Sem backdrop-filter: com a órbita girando por trás, o desfoque era refeito a cada quadro
        (3 passes extras de render por quadro). Fundo um pouco mais opaco no lugar do vidro. */
     background: rgba(12, 26, 64, 0.88);
@@ -694,27 +754,15 @@ svg use {
     box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.6);
 }
 
+/* Ícone num selo redondo ciano, encostado à esquerda da pílula (pílula dentro de pílula). */
 .hero__chip-icon {
-    width: 0.875rem;
-    height: 0.875rem;
+    width: 1.25rem;
+    height: 1.25rem;
+    padding: 0.1875rem;
     flex: none;
     color: var(--color-cyan-400);
-}
-
-/* Pontos sobre a órbita externa (raio 50%): -135°, -20° e 120°. */
-.hero__chip--one {
-    top: 14.6%;
-    left: 14.6%;
-}
-
-.hero__chip--two {
-    top: 32.9%;
-    left: 97%;
-}
-
-.hero__chip--three {
-    top: 93.3%;
-    left: 25%;
+    background: rgba(0, 224, 255, 0.12);
+    border-radius: 50%;
 }
 
 @keyframes hero-spin {
@@ -727,17 +775,107 @@ svg use {
 }
 
 @media (min-width: 48rem) {
+    /* Daqui para cima o visual volta a ser um quadrado: palco e chips ocupam a mesma área e
+       os chips ficam presos à órbita externa. 5,75rem de sobra na coluna = espaço dos chips
+       que passam da órbita dos dois lados. */
     .hero__visual {
-        width: min(60%, 20rem);
+        position: relative;
+        display: block;
+        aspect-ratio: 1;
+        width: min(100% - 5.75rem, 22rem);
+        margin: 0 auto;
+    }
+
+    .hero__stage,
+    .hero__chips {
+        position: absolute;
+        inset: 0;
+    }
+
+    .hero__stage {
+        width: auto;
+    }
+
+    .hero__chips {
+        display: block;
+        max-width: none;
+        margin: 0;
     }
 
     .hero__chip {
-        font-size: var(--text-xs);
+        position: absolute;
+        /* max-content, não auto: absoluto com left alto encolhe até a borda do visual, e o
+           Firefox desconta o ícone do mínimo, então o texto comia o padding direito. */
+        width: max-content;
+        padding-right: var(--space-3);
+        /* O centro do chip fica sobre a linha da órbita (transform estático, não animado). */
+        transform: translate(-50%, -50%);
     }
 
     .hero__chip-icon {
-        width: 1rem;
-        height: 1rem;
+        width: 1.375rem;
+        height: 1.375rem;
+    }
+
+    /* Pontos sobre a órbita externa (raio 50%). θ conta a partir das 3h, no sentido horário:
+       top = 50% + 50%·sen θ e left = 50% + 50%·cos θ. Simétrico no eixo vertical: 1 chip no
+       topo e 4 pares espelhados, com larguras parecidas em cada par.
+       Intervalos de 44°, 40°, 40°, 36° e 40° (não 40° exatos): os 4° a mais no topo abrem
+       12px entre Câmeras e o par de cima em 1024px, e os 4° a menos perto das 3h/9h deixam
+       RFID e PDV dentro da coluna em 1024px. A olho lê como passo igual
+       (spec trabalho/2026-11-15-hero-orbita-v2-design.md, seção 4). */
+    /* θ -90° */
+    .hero__chip--cameras {
+        top: 0;
+        left: 50%;
+    }
+
+    /* θ -46° */
+    .hero__chip--coletores {
+        top: 14%;
+        left: 84.7%;
+    }
+
+    /* θ -134° */
+    .hero__chip--telas {
+        top: 14%;
+        left: 15.3%;
+    }
+
+    /* θ -6° */
+    .hero__chip--rfid {
+        top: 44.8%;
+        left: 99.7%;
+    }
+
+    /* θ 186° */
+    .hero__chip--pdv {
+        top: 44.8%;
+        left: 0.3%;
+    }
+
+    /* θ 34° */
+    .hero__chip--etiquetas {
+        top: 78%;
+        left: 91.5%;
+    }
+
+    /* θ 146° */
+    .hero__chip--rede {
+        top: 78%;
+        left: 8.5%;
+    }
+
+    /* θ 70° */
+    .hero__chip--tablets {
+        top: 97%;
+        left: 67.1%;
+    }
+
+    /* θ 110° */
+    .hero__chip--totem {
+        top: 97%;
+        left: 32.9%;
     }
 }
 
@@ -754,12 +892,10 @@ svg use {
         align-items: center;
     }
 
-    /* Visual um pouco menor que a altura do bloco de texto e alinhado ao título, à direita
-       da coluna, com respiro para o chip da direita não encostar na borda. */
+    /* Visual centrado na coluna da direita (margin: 0 auto de 48rem), com a mesma sobra dos
+       dois lados para os chips. */
     .hero__visual {
-        width: min(calc(100% - var(--space-5)), 28rem);
-        margin-right: var(--space-5);
-        justify-self: end;
+        width: min(100% - 5.75rem, 24rem);
     }
 }
 
@@ -798,6 +934,7 @@ svg use {
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--color-blue-600);
+    text-wrap: balance;
 }
 
 .section__eyebrow::before {
@@ -814,7 +951,6 @@ svg use {
     font-weight: 800;
     line-height: 1.15;
     letter-spacing: -0.025em;
-    text-wrap: balance;
 }
 
 .section__lead {
@@ -853,8 +989,10 @@ svg use {
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-2) var(--space-4);
-    font-size: var(--text-sm);
+    /* Abaixo de ~360px a fonte e o padding encolhem um pouco para toda pill caber em 1 linha
+       (a maior mede 308px em 15px): pill que quebra não encolhe e fica com folga torta. */
+    padding: var(--space-2) clamp(var(--space-3), 10vw - 1.25rem, var(--space-4));
+    font-size: clamp(0.875rem, 4.375vw, var(--text-sm));
     font-weight: 500;
     background: var(--color-surface-tint);
     border: 1px solid var(--color-line);
@@ -903,6 +1041,12 @@ svg use {
     transition: transform 0.3s var(--ease), box-shadow 0.3s var(--ease), border-color 0.3s var(--ease);
 }
 
+/* O título mede a fonte pela largura útil do próprio card (cqi). O CTA fica de fora: é o
+   nowrap do botão dele que dá a largura da coluna a partir de 48rem. */
+.product-card:not(.product-card--cta) {
+    container-type: inline-size;
+}
+
 .product-card:hover {
     transform: translateY(-4px);
     border-color: rgba(0, 133, 255, 0.45);
@@ -927,10 +1071,12 @@ svg use {
 .product-card__title {
     margin-top: auto;
     font-family: var(--font-display);
-    font-size: var(--text-h3);
+    /* Sem hifenização: palavra nunca parte. A maior ("Infraestrutura") mede ~7,3 vezes a
+       fonte, então 13,5% da largura útil sempre cabe; o piso é 14px (320px) e o teto, o token. */
+    font-size: clamp(0.875rem, 13.5cqi, var(--text-h3));
     font-weight: 700;
     line-height: 1.3;
-    hyphens: auto;
+    /* Rede de segurança para zoom de texto: quebra em vez de estourar o card. */
     overflow-wrap: break-word;
 }
 
@@ -1113,6 +1259,8 @@ svg use {
     font-size: var(--text-sm);
     line-height: 1.5;
     color: var(--color-ink-soft);
+    /* Linhas equilibradas: evita a última palavra sozinha (ex.: "pós-venda." no card 10). */
+    text-wrap: balance;
 }
 
 @media (hover: hover) {
@@ -1194,6 +1342,20 @@ svg use {
     .solution-card__title {
         font-size: 1.25rem;
     }
+
+    /* Faixa que fecha a grade: linha inteira, selo e texto lado a lado (como no mobile),
+       em vez de um card esticado e vazio. A borda direita continua a da grade. */
+    .solution-card--wide {
+        grid-column: 1 / -1;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        column-gap: var(--space-5);
+    }
+
+    /* Texto na mesma altura do número: reserva a largura dele (até ~65px), como no mobile. */
+    .solution-card--wide .solution-card__body {
+        padding-right: calc(var(--space-8) + var(--space-4));
+    }
 }
 
 @media (min-width: 64rem) {
@@ -1242,6 +1404,7 @@ svg use {
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--color-cyan-400);
+    text-wrap: balance;
 }
 
 .maintenance__title {
@@ -1251,7 +1414,6 @@ svg use {
     line-height: 1.15;
     letter-spacing: -0.025em;
     color: #ffffff;
-    text-wrap: balance;
 }
 
 .maintenance__title-highlight {
@@ -1299,11 +1461,13 @@ svg use {
     font-family: var(--font-display);
     font-weight: 700;
     color: #ffffff;
+    text-wrap: balance;
 }
 
 .maintenance__item-text {
     font-size: var(--text-sm);
     color: var(--color-text-on-dark-soft);
+    text-wrap: balance;
 }
 
 @media (min-width: 64rem) {
@@ -1484,6 +1648,7 @@ svg use {
     margin-top: var(--space-2);
     font-size: var(--text-sm);
     color: var(--color-ink-soft);
+    text-wrap: balance;
 }
 
 @media (min-width: 48rem) {
@@ -1505,29 +1670,27 @@ svg use {
     gap: var(--space-6);
 }
 
+/* Mobile: PIX, Transferência e Cartão em linhas (ícone ao lado do título). Em 3 colunas, cada
+   card tinha ~56px de conteúdo e "Transferência" (~110px) estourava a borda. */
 .payment__list {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--space-3);
 }
 
 .payment__item {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     gap: var(--space-3);
-    min-height: 7.5rem;
     padding: var(--space-4);
     border: 1px solid var(--color-line);
     border-radius: var(--radius-md);
 }
 
-.payment__item:not(.payment__item--featured) .payment__title {
-    margin-top: auto;
-}
-
 .payment__item--featured {
     grid-column: 1 / -1;
+    flex-direction: column;
+    align-items: flex-start;
+    min-height: 7.5rem;
     padding: var(--space-5);
     color: #ffffff;
     background: linear-gradient(130deg, var(--color-navy-800), var(--color-navy-700));
@@ -1560,6 +1723,23 @@ svg use {
 .payment__text {
     font-size: var(--text-sm);
     color: var(--color-text-on-dark-soft);
+    text-wrap: balance;
+}
+
+@media (min-width: 48rem) {
+    .payment__list {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .payment__item {
+        flex-direction: column;
+        align-items: flex-start;
+        min-height: 7.5rem;
+    }
+
+    .payment__item:not(.payment__item--featured) .payment__title {
+        margin-top: auto;
+    }
 }
 
 @media (min-width: 64rem) {
@@ -1609,6 +1789,7 @@ svg use {
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--color-cyan-400);
+    text-wrap: balance;
 }
 
 .contact__title {
@@ -1618,7 +1799,6 @@ svg use {
     line-height: 1.15;
     letter-spacing: -0.025em;
     color: #ffffff;
-    text-wrap: balance;
 }
 
 .contact__text {
@@ -1632,6 +1812,8 @@ svg use {
 
 .contact__channels {
     display: grid;
+    /* Os 5 cards com a mesma altura, mesmo quando o e-mail quebra (320px). */
+    grid-auto-rows: 1fr;
     gap: var(--space-3);
 }
 
@@ -1640,8 +1822,10 @@ svg use {
     grid-template-columns: auto 1fr;
     column-gap: var(--space-4);
     align-items: center;
+    align-content: center;
+    height: 100%;
     min-height: 4.5rem;
-    padding: var(--space-4) var(--space-5);
+    padding: var(--space-4);
     text-decoration: none;
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid var(--color-line-dark);
@@ -1656,7 +1840,6 @@ a.contact__link:hover {
 }
 
 .contact__icon {
-    grid-row: span 2;
     width: 1.75rem;
     height: 1.75rem;
     color: var(--color-cyan-400);
@@ -1675,11 +1858,30 @@ a.contact__link:hover {
     font-size: 1.125rem;
     font-weight: 700;
     color: #ffffff;
+    /* Ícone e rótulo na primeira linha; o valor embaixo, na largura toda do card. Assim o
+       e-mail cabe em uma linha a partir de 360px e em 1024px (coluna estreita do desktop). */
+    grid-column: 1 / -1;
+}
+
+/* E-mail: o endereço (28 caracteres, uma palavra só) só cabe no mobile em 14px. A altura de
+   linha é a mesma dos outros valores (18px x 1.65) para os cards terem a mesma altura; em
+   320px quebra no <wbr> antes do @. */
+.contact__value--email {
+    font-size: 0.875rem;
+    line-height: calc(1.125rem * 1.65);
+    letter-spacing: -0.01em;
+    /* Rede de segurança para zoom de texto ou fonte padrão maior: quebra em vez de estourar. */
+    overflow-wrap: anywhere;
 }
 
 @media (min-width: 48rem) {
     .contact__container {
         padding: var(--space-8) var(--space-7);
+    }
+
+    .contact__value--email {
+        font-size: 1.125rem;
+        letter-spacing: normal;
     }
 }
 
@@ -1714,6 +1916,7 @@ a.contact__link:hover {
     max-width: 24rem;
     margin-top: var(--space-4);
     font-size: var(--text-sm);
+    text-wrap: balance;
 }
 
 .footer__navigation {
@@ -1745,6 +1948,11 @@ a.contact__link:hover {
     padding: var(--space-5) 0 calc(var(--space-6) + 4rem);
     font-size: var(--text-xs);
     border-top: 1px solid var(--color-line-dark);
+}
+
+.footer__copyright,
+.footer__note {
+    text-wrap: balance;
 }
 
 @media (min-width: 64rem) {
@@ -1873,6 +2081,7 @@ main section[tabindex="-1"]:focus-visible {
     font-family: var(--font-display);
     font-weight: 700;
     line-height: 1.4;
+    text-wrap: balance;
 }
 
 @media (min-width: 48rem) {
@@ -1890,7 +2099,20 @@ main section[tabindex="-1"]:focus-visible {
     }
 }
 
+/* Mobile sem nowrap: em 320px o rótulo não cabe em uma linha (quebra pelo .button--wrap).
+   A partir de 48rem o nowrap volta, porque é ele que dá a largura da coluna da grade. */
 .product-card__cta-button {
     flex-shrink: 0;
-    white-space: nowrap;
+}
+
+/* Seta sempre visível: sem min-width o flex a esmagava até 0 (e o Firefox não a contava no
+   mínimo do botão, então o texto saía da caixa). */
+.product-card__cta-button .button__icon {
+    min-width: 1.125rem;
+}
+
+@media (min-width: 48rem) {
+    .product-card__cta-button {
+        white-space: nowrap;
+    }
 }
