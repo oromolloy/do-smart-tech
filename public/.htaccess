@@ -1,0 +1,46 @@
+# Apache: só os arquivos que o site serve ficam acessíveis, sem listagem de pasta, com cache por tipo.
+# Vai para a raiz do dist/ no build. Em servidor que não é Apache, é ignorado.
+
+Options -Indexes
+DirectoryIndex index.html
+
+# Nega tudo e libera só os tipos do site: CSS e JS só com hash do build (o fonte sem hash fica bloqueado),
+# mais a licença das fontes (a OFL exige que ela acompanhe as fontes).
+# O nome vazio cobre o pedido de pasta ("/" e "/privacidade/"), que segue para o index.html.
+<IfModule mod_authz_core.c>
+    <FilesMatch ".">
+        # Pasta passa (o Apache redireciona "/privacidade" para "/privacidade/") e /.well-known/ também, para a
+        # validação do certificado SSL (AutoSSL/Let's Encrypt) renovar; outro arquivo fora da lista, não.
+        Require expr "-d %{REQUEST_FILENAME} || %{REQUEST_URI} =~ m#^/\.well-known/#"
+    </FilesMatch>
+    <FilesMatch "^(|[^.].*\.(html|webp|png|svg|woff2)|[^.].*-[A-Za-z0-9_-]{8}\.(css|js)|OFL\.txt)$">
+        # Tipo liberado dentro de pasta oculta (ex.: /.git/x.html) continua negado.
+        Require expr "%{REQUEST_URI} !~ m#/\.# || %{REQUEST_URI} =~ m#^/\.well-known/#"
+    </FilesMatch>
+</IfModule>
+# Apache 2.2 só filtra pelo nome do arquivo: sem a exceção do /.well-known/ nem o bloqueio de pasta oculta.
+<IfModule !mod_authz_core.c>
+    <FilesMatch ".">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+    <FilesMatch "^(|[^.].*\.(html|webp|png|svg|woff2)|[^.].*-[A-Za-z0-9_-]{8}\.(css|js)|OFL\.txt)$">
+        Order allow,deny
+        Allow from all
+    </FilesMatch>
+</IfModule>
+
+# Cache: 1 dia para estáticos sem hash (vindos de public/), 1 ano imutável para os com hash do build, HTML sempre revalidado.
+# O hash do Vite é "-" seguido de 8 caracteres antes da extensão (ex.: style-BcJjWlUe.css).
+# Por isso nenhum arquivo de public/ pode terminar em "-" + 8 caracteres (ex.: logo-whatsapp.svg), senão ganha 1 ano.
+<IfModule mod_headers.c>
+    <FilesMatch "\.(css|js|webp|png|svg|woff2|txt)$">
+        Header set Cache-Control "public, max-age=86400"
+    </FilesMatch>
+    <FilesMatch "-[A-Za-z0-9_-]{8}\.(css|js|webp|png|svg|woff2)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    <FilesMatch "\.html$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+</IfModule>

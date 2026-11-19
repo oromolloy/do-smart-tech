@@ -27,6 +27,9 @@
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 
     <link rel="preload" as="font" href="assets/fonts/montserrat-latin-800-normal.woff2" type="font/woff2" crossorigin>
+    <link rel="preload" as="font" href="assets/fonts/inter-latin-400-normal.woff2" type="font/woff2" crossorigin>
+    <link rel="preload" as="font" href="assets/fonts/inter-latin-600-normal.woff2" type="font/woff2" crossorigin>
+    <link rel="preload" as="font" href="assets/fonts/montserrat-latin-700-normal.woff2" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="style.css">
     <script type="module" src="./script.js"></script>
 
@@ -160,7 +163,8 @@
                     <div class="hero__stage">
                         <div class="hero__orbit hero__orbit--outer"></div>
                         <div class="hero__orbit hero__orbit--inner"></div>
-                        <img class="hero__symbol" src="assets/images/simbolo-claro.webp" alt="" width="527" height="415" fetchpriority="low">
+                        <!-- atalho: sizes repete o CSS do .hero__symbol (117px no mobile e 183px de 48rem; 264px de 64rem força a 527w que o fundo do card já baixa), se o tamanho do .hero__symbol ou do card mudar no CSS atualizar sizes -->
+                        <img class="hero__symbol" src="assets/images/simbolo-claro.webp" srcset="assets/images/simbolo-claro-240.webp 240w, assets/images/simbolo-claro.webp 527w" sizes="(min-width: 64rem) 264px, (min-width: 48rem) 183px, 117px" alt="" width="527" height="415" fetchpriority="low">
                     </div>
                     <div class="hero__chips">
                         <span class="hero__chip hero__chip--cameras"><svg class="hero__chip-icon"><use href="#i-camera"/></svg>Câmeras de segurança</span>
